@@ -47,8 +47,11 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AudioTrimmer.cs" />
+    <Compile Include="Mp3Converter.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="SoundProcessor.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
