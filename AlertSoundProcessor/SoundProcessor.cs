@@ -1,74 +1,85 @@
 using System;
+using System.IO;
 using NAudio.Wave;
 
 namespace AlertSoundProcessor
 {
     public static class SoundProcessor
     {
-        public static void NormalizeVolume(string inPath, string outPath)
+        public static void ProcessSoundFile(string inPath, string outPath)
         {
             using (var reader = new AudioFileReader(inPath))
             {
-                var data = GetKeyValues(reader);
-
-                // rewind and amplify
-                reader.Position = 0;
-                reader.Volume = 1.0f / data.MaxVolume;
-
                 var stage1TempFile = inPath + "_temp_volNormd";
                 var stage2TempFile = inPath + "_temp_volNormTrimWav";
-                WaveFileWriter.CreateWaveFile16(stage1TempFile, reader);
-                
-                AudioTrimmer.TrimWavFile_Amount(stage1TempFile, stage2TempFile, data.StartCut, data.EndCut);
+                var data = GetKeyValues(reader);
 
+                Console.WriteLine($"File: {(Path.GetFileName(Path.GetDirectoryName(inPath)) + "/" + Path.GetFileName(inPath)).PadRight(40)} Volume: {String.Format("{0:0.000}", data.MaxVolume).PadRight(15)} StartTrim: {data.StartCut.TotalSeconds}s");
+                
+                NormalizeVolume(reader, data); // convert to WAV file for further processing
+                WaveFileWriter.CreateWaveFile16(stage1TempFile, reader);
+                AudioTrimmer.TrimWavFile(stage1TempFile, stage2TempFile, data.StartCut, data.EndCut);
                 Mp3Converter.ConvertToMp3V3(stage2TempFile, outPath);
                 
-                System.IO.File.Delete(stage1TempFile);
-                System.IO.File.Delete(stage2TempFile);
+                // remove temp files
+                File.Delete(stage1TempFile);
+                File.Delete(stage2TempFile);
             }
+        }
+
+        private static void NormalizeVolume(AudioFileReader reader, AudioKeyValues data)
+        {
+            reader.Volume = 1.0f / data.MaxVolume;
         }
 
         private static AudioKeyValues GetKeyValues(AudioFileReader reader)
         {
             var res = new AudioKeyValues();
-            const double tolerance = 0.009;
+            const double threshold = 0.009;
             var startIteration = 0;
             var endIteration = 0;
-                
-            // find the max peak
-            float[] buffer = new float[reader.WaveFormat.SampleRate];
+            var totalIterationCount = 0;
+            var buffer = new float[reader.WaveFormat.SampleRate];
             int read;
+            
+            // iterate file
             do
             {
                 read = reader.Read(buffer, 0, buffer.Length);
-                for (int n = 0; n < read; n++)
+                
+                for (var n = 0; n < read; n++)
                 {
-                    res.IterationCount++;
+                    totalIterationCount++;
                     var volume = Math.Abs(buffer[n]);
 
-                    if (volume > tolerance && startIteration == 0)
+                    // found start trim pos
+                    if (volume > threshold && startIteration == 0)
                     {
-                        startIteration = res.IterationCount;
+                        startIteration = totalIterationCount;
                     }
 
-                    if (volume > tolerance)
+                    // update end trim pos
+                    if (volume > threshold)
                     {
-                        endIteration = res.IterationCount;
+                        endIteration = totalIterationCount;
                     }
 
+                    // update max volume
                     if (volume > res.MaxVolume)
                     {
                         res.MaxVolume = volume;
                     }
                 }
             } while (read > 0);
-
-            Console.WriteLine($"Max sample value: {res.MaxVolume}");
-
-            if (res.MaxVolume == 0 || res.MaxVolume > 1.0f) throw new InvalidOperationException("File cannot be normalized");
             
-            double startPercent = (double) startIteration / res.IterationCount;
-            double endPercent = (double) endIteration / res.IterationCount;
+            // reset current position to start
+            reader.Position = 0;
+
+            if (res.MaxVolume <= 0 || res.MaxVolume > 1.0f) throw new InvalidOperationException("File cannot be normalized");
+            
+            // convert trim byteIteration to time
+            var startPercent = (double) startIteration / totalIterationCount;
+            var endPercent = (double) endIteration / totalIterationCount;
             res.StartCut = TimeSpan.FromMilliseconds(reader.TotalTime.TotalMilliseconds * startPercent); 
             res.EndCut = TimeSpan.FromMilliseconds(reader.TotalTime.TotalMilliseconds * endPercent);
             res.EndCut = reader.TotalTime - res.EndCut;
@@ -76,9 +87,8 @@ namespace AlertSoundProcessor
             return res;
         }
 
-        public class AudioKeyValues
+        private class AudioKeyValues
         {
-            public int IterationCount { get; set; }
             public float MaxVolume { get; set; }
             public TimeSpan StartCut { get; set; }
             public TimeSpan EndCut { get; set; }

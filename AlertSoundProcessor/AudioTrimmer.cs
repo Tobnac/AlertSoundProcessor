@@ -5,41 +5,41 @@ namespace AlertSoundProcessor
 {
     public static class AudioTrimmer
     {
-        public static void TrimWavFile_Amount(string inPath, string outPath, TimeSpan cutFromStart, TimeSpan cutFromEnd)
+        public static void TrimWavFile(string inPath, string outPath, TimeSpan cutFromStart, TimeSpan cutFromEnd)
         {
-            using (WaveFileReader reader = new WaveFileReader(inPath))
+            using (var reader = new WaveFileReader(inPath))
             {
-                using (WaveFileWriter writer = new WaveFileWriter(outPath, reader.WaveFormat))
+                using (var writer = new WaveFileWriter(outPath, reader.WaveFormat))
                 {
-                    int bytesPerMillisecond = reader.WaveFormat.AverageBytesPerSecond / 1000;
+                    var bytesPerMillisecond = reader.WaveFormat.AverageBytesPerSecond / 1000;
 
-                    int startPos = (int)cutFromStart.TotalMilliseconds * bytesPerMillisecond;
+                    var startPos = (int) cutFromStart.TotalMilliseconds * bytesPerMillisecond;
                     startPos = startPos - startPos % reader.WaveFormat.BlockAlign;
 
-                    int endBytes = (int)cutFromEnd.TotalMilliseconds * bytesPerMillisecond;
+                    var endBytes = (int) cutFromEnd.TotalMilliseconds * bytesPerMillisecond;
                     endBytes = endBytes - endBytes % reader.WaveFormat.BlockAlign;
-                    int endPos = (int)reader.Length - endBytes; 
+                    var endPos = (int) reader.Length - endBytes; 
 
-                    TrimWavFile(reader, writer, startPos, endPos);
+                    TrimWavFile_Inner(reader, writer, startPos, endPos);
                 }
             }
         }
 
-        private static void TrimWavFile(WaveFileReader reader, WaveFileWriter writer, int startPos, int endPos)
+        private static void TrimWavFile_Inner(WaveFileReader reader, WaveFileWriter writer, int startPos, int endPos)
         {
             reader.Position = startPos;
-            byte[] buffer = new byte[1024];
+            var buffer = new byte[1024];
             while (reader.Position < endPos)
             {
-                int bytesRequired = (int)(endPos - reader.Position);
-                if (bytesRequired > 0)
+                var bytesRequired = (int) (endPos - reader.Position);
+                if (bytesRequired <= 0) continue;
+                
+                var bytesToRead = Math.Min(bytesRequired, buffer.Length);
+                var bytesRead = reader.Read(buffer, 0, bytesToRead);
+                
+                if (bytesRead > 0)
                 {
-                    int bytesToRead = Math.Min(bytesRequired, buffer.Length);
-                    int bytesRead = reader.Read(buffer, 0, bytesToRead);
-                    if (bytesRead > 0)
-                    {
-                        writer.Write(buffer, 0, bytesRead);
-                    }
+                    writer.Write(buffer, 0, bytesRead);
                 }
             }
         }
