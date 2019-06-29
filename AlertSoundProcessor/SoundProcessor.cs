@@ -5,7 +5,7 @@ namespace AlertSoundProcessor
 {
     public static class SoundProcessor
     {
-        public static void NormalizeVolume(string inPath)
+        public static void NormalizeVolume(string inPath, string outPath)
         {
             using (var reader = new AudioFileReader(inPath))
             {
@@ -15,17 +15,16 @@ namespace AlertSoundProcessor
                 reader.Position = 0;
                 reader.Volume = 1.0f / data.MaxVolume;
 
-                // write out to a new WAV file
-                var path = @"C:\Users\Tobnac\Desktop\output.wav";
-                var pathb = @"C:\Users\Tobnac\Desktop\outputRes.wav";
-                var pathc = @"C:\Users\Tobnac\Desktop\outputResTwo.mp3";
-                WaveFileWriter.CreateWaveFile16(path, reader);
+                var stage1TempFile = inPath + "_temp_volNormd";
+                var stage2TempFile = inPath + "_temp_volNormTrimWav";
+                WaveFileWriter.CreateWaveFile16(stage1TempFile, reader);
                 
-                AudioTrimmer.TrimWavFile_Amount(path, pathb, data.StartCut, data.EndCut);
+                AudioTrimmer.TrimWavFile_Amount(stage1TempFile, stage2TempFile, data.StartCut, data.EndCut);
 
-//                ConvertToMp3V3(pathb, pathc);
-//                ConvertToMp3(pathb, pathc);
-//                ReWriteAsMp3(pathb, pathc);
+                Mp3Converter.ConvertToMp3V3(stage2TempFile, outPath);
+                
+                System.IO.File.Delete(stage1TempFile);
+                System.IO.File.Delete(stage2TempFile);
             }
         }
 

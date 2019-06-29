@@ -38,7 +38,7 @@ namespace AlertSoundProcessor
                     int bytesRead = reader.Read(buffer, 0, bytesToRead);
                     if (bytesRead > 0)
                     {
-                        writer.WriteData(buffer, 0, bytesRead);
+                        writer.Write(buffer, 0, bytesRead);
                     }
                 }
             }
