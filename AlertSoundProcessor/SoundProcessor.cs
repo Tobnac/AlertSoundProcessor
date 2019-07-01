@@ -35,7 +35,7 @@ namespace AlertSoundProcessor
         private static AudioKeyValues GetKeyValues(AudioFileReader reader)
         {
             var res = new AudioKeyValues();
-            const double threshold = 0.009;
+            const double volumeThreshold = 0.009;
             var startIteration = 0;
             var endIteration = 0;
             var totalIterationCount = 0;
@@ -53,13 +53,13 @@ namespace AlertSoundProcessor
                     var volume = Math.Abs(buffer[n]);
 
                     // found start trim pos
-                    if (volume > threshold && startIteration == 0)
+                    if (volume > volumeThreshold && startIteration == 0)
                     {
                         startIteration = totalIterationCount;
                     }
 
                     // update end trim pos
-                    if (volume > threshold)
+                    if (volume > volumeThreshold)
                     {
                         endIteration = totalIterationCount;
                     }
@@ -72,12 +72,12 @@ namespace AlertSoundProcessor
                 }
             } while (read > 0);
             
-            // reset current position to start
+            // reset current position to start for future reads
             reader.Position = 0;
 
             if (res.MaxVolume <= 0 || res.MaxVolume > 1.0f) throw new InvalidOperationException("File cannot be normalized");
             
-            // convert trim byteIteration to time
+            // convert iteration# to time
             var startPercent = (double) startIteration / totalIterationCount;
             var endPercent = (double) endIteration / totalIterationCount;
             res.StartCut = TimeSpan.FromMilliseconds(reader.TotalTime.TotalMilliseconds * startPercent); 
