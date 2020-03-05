@@ -36,6 +36,7 @@ namespace AlertSoundProcessor
         {
             var res = new AudioKeyValues();
             const double volumeThreshold = 0.009;
+            const double endToleranceModifier = 0.5;
             var startIteration = 0;
             var endIteration = 0;
             var totalIterationCount = 0;
@@ -58,8 +59,8 @@ namespace AlertSoundProcessor
                         startIteration = totalIterationCount;
                     }
 
-                    // update end trim pos
-                    if (volume > volumeThreshold)
+                    // update end trim pos -> less threshold/strict because a longer end is not bad
+                    if (volume > volumeThreshold * endToleranceModifier)
                     {
                         endIteration = totalIterationCount;
                     }
